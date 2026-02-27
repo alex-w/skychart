@@ -2548,7 +2548,14 @@ var
 begin
   nu := 0;
   if comelem.oe < 1 then
+    try
     eliptique;
+    except
+      if (comelem.oe>0.9999) then
+        comelem.oe:=1 // retry with parabolic orbit
+      else
+        raise;
+    end;
   if comelem.oe = 1 then
     parabolique;
   if comelem.oe > 1 then
