@@ -687,6 +687,8 @@ type
     ActiveScript: integer;
     FTelescopeConnected: boolean;
     NoMenu: boolean;
+    // save maximized state pre-allsky
+    AllSkyMaximized:boolean;
     AccelList: array[0..MaxMenulevel] of string;
     httpdownload: THTTPBigDownload;
     procedure ProcessParams1;
@@ -2739,6 +2741,7 @@ begin
     DefaultFormatSettings.TimeSeparator := ':';
     NoMenu:=False;
     NeedRestart := False;
+    AllSkyMaximized:=true;
     showsplash := True;
     ConfirmSaveConfig := True;
     InitOK := False;
@@ -3684,9 +3687,21 @@ end;
 
 procedure Tf_main.allSkyExecute(Sender: TObject);
 begin
-  if MultiFrame1.ActiveObject is Tf_chart then
-    with MultiFrame1.ActiveObject as Tf_chart do
-      SetZenit(deg2rad * 255);
+  if allSky.Checked then begin
+    allSky.Checked:=false;
+    if AllSkyMaximized then MultiFrame1.maximized:=true;
+  end
+  else begin
+    if MultiFrame1.ActiveObject is Tf_chart then begin
+      allSky.Checked:=true;
+      AllSkyMaximized:=MultiFrame1.maximized;
+      MultiFrame1.maximized:=false;
+      MultiFrame1.ActiveChild.Width:=MultiFrame1.ClientHeight;
+      MultiFrame1.ActiveChild.Height:=MultiFrame1.ActiveChild.Width;
+      Tf_chart(MultiFrame1.ActiveObject).Refresh(false,false);
+      Tf_chart(MultiFrame1.ActiveObject).SetZenit(deg2rad * 240);
+    end;
+  end;
 end;
 
 
