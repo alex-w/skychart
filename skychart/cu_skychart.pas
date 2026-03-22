@@ -830,7 +830,7 @@ begin
   sla_GEOC(p, cfgsc.ObsAltitude, cfgsc.ObsRAU, cfgsc.ObsZAU);
   cfgsc.Diurab := PI2 * cfgsc.ObsRAU * SOLSID / C;
   // horizon drawing
-  if cfgsc.HorizonFile<>'' then LoadHorizon;
+  LoadHorizon;
   if cfgsc.ShowHorizonPicture then LoadHorizonPicture(cfgsc.HorizonPictureFile);
   cfgsc.ShowHorizonPicture := cfgsc.ShowHorizonPicture and cfgsc.horizonpicturevalid;
   Result := True;

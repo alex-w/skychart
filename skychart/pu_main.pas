@@ -6073,7 +6073,7 @@ begin
       begin
         RecomputeAsteroid;
       end;
-      if f_calendar.Visible then
+      if not f_calendar.initial then
       begin
         f_calendar.config.Assign(sc.cfgsc);
         f_calendar.BtnRefreshClick(nil);

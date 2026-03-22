@@ -173,7 +173,7 @@ type
     procedure TleCheckListClickCheck(Sender: TObject);
   private
     { Private declarations }
-    initial, lockclick: boolean;
+    Finitial, lockclick: boolean;
     Fplanet: Tplanet;
     FGetChartConfig: TScFunc;
     Fupdchart: TScFunc;
@@ -222,6 +222,7 @@ type
     procedure SetLang;
     procedure LoadSolarEclipse;
     procedure LoadLunarEclipse;
+    property initial: boolean read Finitial;
     property planet: Tplanet read Fplanet write Fplanet;
     property EclipsePath: string read Feclipsepath write Feclipsepath;
     property OnGetChartConfig: TScFunc read FGetChartConfig write FGetChartConfig;
@@ -270,7 +271,7 @@ begin
   date2.JD := date1.JD + 5;
   time.Time := now;
   LabelTle.Caption := '';
-  initial := True;
+  Finitial := True;
   for i := low(PlanetGraphs) to high(PlanetGraphs) do
   begin
     PlanetGraphs[i] := TBitmap.Create;
@@ -316,7 +317,7 @@ end;
 
 procedure Tf_calendar.FormClose(Sender: TObject; var CloseAction: TCloseAction);
 begin
-  initial := True;
+  Finitial := True;
 end;
 
 procedure Tf_calendar.FormDestroy(Sender: TObject);
@@ -358,7 +359,7 @@ begin
   begin
     PlanetGraphs[i].SetSize(dgPlanet.DefaultColWidth, dgPlanet.DefaultRowHeight);
   end;
-  if initial then
+  if Finitial then
   begin
     date1.JD := jd(config.CurYear, config.CurMonth, config.CurDay, 0);
     date2.JD := date1.JD + 14;
@@ -366,7 +367,7 @@ begin
     time.Time := config.CurTime / 24;
     CometFilter.Text := 'C/' + IntToStr(config.CurYear);
     RefreshAll;
-    initial := False;
+    Finitial := False;
   end;
   BtnReset.Visible := False;
   BtnPrint.Visible := (GetPrinterIndex >= 0);
@@ -839,13 +840,22 @@ procedure Tf_calendar.InitRiseCell(var gr: Tstringgrid);
 var
   i: integer;
 begin
-  with gr do
+  with gr do begin
+    if config.HorizonRise and (config.HorizonMax > musec) then begin
+      Cells[6,0]:=rsLocalHorizon;
+      Cells[8,0]:=rsLocalHorizon;
+    end
+    else begin
+      Cells[6,0]:='';
+      Cells[8,0]:='';
+    end;
     for i := 2 to rowcount - 1 do
     begin
       cells[6, i] := '';
       cells[7, i] := '';
       cells[8, i] := '';
     end;
+  end;
 end;
 
 procedure Tf_calendar.LoadSolarEclipse;
@@ -1460,7 +1470,8 @@ var
   procedure ComputeRow(gr: TstringGrid; ipla: integer);
   var
     PSat, aSat, bSat, beSat, sbSat: double;
-    tt0, p, pde, pds, w1, w2, w3: double;
+    tt0, p, pde, pds, w1, w2, w3,hrl,hsl,al: double;
+    pii,ii: integer;
   begin
     with gr do
     begin
@@ -1537,6 +1548,22 @@ var
       if ipla = 5 then cells[11, i] := grst;
       Planet.PlanetRiseSet(ipla, jd0, AzNorth, mr, mt, ms, azr, azs, jdr, jdt, jds,
         rar, der, rat, det, ras, des, irc, config);
+
+      if config.HorizonRise and (config.HorizonMax > musec) and (irc<2) then begin
+        pii:=irc;
+        if ObjRise(rar,der,config,hrl,al,ii) then begin
+           mr := artostr3(rmod(hrl + 24, 24));
+           azr:=LONmToStr(rad2deg * al);
+           irc:=ii;
+        end;
+        if ObjSet(ras,des,config,hsl,al,ii) then begin
+           ms := artostr3(rmod(hsl + 24, 24));
+           azs:=LONmToStr(rad2deg * al);
+           irc:=ii;
+        end;
+        if (pii=1) and (abs(hsl-hrl)<0.05) then irc:=1;  // detect circumpolar
+      end;
+
       objects[0, i] := SetObjCoord(jda,ar,de,magn,diam,illum,0,0,jdr,jdt,jds,rad2deg*az,rad2deg*ha,irc);
       case irc of
         0:
@@ -2999,6 +3026,14 @@ begin
       i := 2;
       Cometgrid.cells[0, 0] := trim(nam);
       Cometgrid.cells[1, 0] := trim(config.EquinoxName) + blank + appmsg[46];
+      if config.HorizonRise and (config.HorizonMax > musec) then begin
+        Cometgrid.Cells[6,0]:=rsLocalHorizon;
+        Cometgrid.Cells[8,0]:=rsLocalHorizon;
+      end
+      else begin
+        Cometgrid.Cells[6,0]:='';
+        Cometgrid.Cells[8,0]:='';
+      end;
       repeat
         djd(jda, a, m, d, h);
         jd0 := jd(a, m, d, 0);
@@ -3026,7 +3061,10 @@ begin
           Fplanet.Comet(jd0 + rmod((hr1 - config.TimeZone) + 24, 24) / 24, False,
             ra1, dec1, dist, r, p1,p2,p3,p4, lc, car, cde, rc, xc, yc, zc);
           precession(jd2000, config.jdchart, ra1, dec1);
-          RiseSet(jd0, ra1, dec1, hr, ht2, hs2, azr, azs, irc2, config);
+          if config.HorizonRise and (config.HorizonMax > musec) and (irc<2) then
+            ObjRise(ra1,dec1,config,hr,azr,irc)
+          else
+            RiseSet(jd0, ra1, dec1, hr, ht2, hs2, azr, azs, irc2, config);
           Fplanet.Comet(jd0 + rmod((ht1 - config.TimeZone) + 24, 24) / 24, False,
             ra2, dec2, dist, r, p1,p2,p3,p4, lc, car, cde, rc, xc, yc, zc);
           precession(jd2000, config.jdchart, ra2, dec2);
@@ -3034,7 +3072,10 @@ begin
           Fplanet.Comet(jd0 + rmod((hs1 - config.TimeZone) + 24, 24) / 24, False,
             ra3, dec3, dist, r, p1,p2,p3,p4, lc, car, cde, rc, xc, yc, zc);
           precession(jd2000, config.jdchart, ra3, dec3);
-          RiseSet(jd0, ra3, dec3, hr2, ht2, hs, azr, azs, irc2, config);
+          if config.HorizonRise and (config.HorizonMax > musec) and (irc<2) then
+            ObjSet(ra3,dec3,config,hs,azs,irc2)
+          else
+            RiseSet(jd0, ra3, dec3, hr2, ht2, hs, azr, azs, irc2, config);
           case irc of
             0:
             begin
@@ -3233,6 +3274,14 @@ begin
       i := 2;
       Asteroidgrid.cells[0, 0] := trim(nam);
       Asteroidgrid.cells[1, 0] := trim(config.EquinoxName) + blank + appmsg[46];
+      if config.HorizonRise and (config.HorizonMax > musec) then begin
+        Asteroidgrid.Cells[6,0]:=rsLocalHorizon;
+        Asteroidgrid.Cells[8,0]:=rsLocalHorizon;
+      end
+      else begin
+        Asteroidgrid.Cells[6,0]:='';
+        Asteroidgrid.Cells[8,0]:='';
+      end;
       repeat
         djd(jda, a, m, d, h);
         jd0 := jd(a, m, d, 0);
@@ -3260,7 +3309,10 @@ begin
           Fplanet.Asteroid(jd0 + rmod((hr1 - config.TimeZone) + 24, 24) / 24,
             False, ra1, dec1, dist, r, p1,p2,p3, xac, yac, zac);
           precession(jd2000, config.jdchart, ra1, dec1);
-          RiseSet(jd0, ra1, dec1, hr, ht2, hs2, azr, azs, irc2, config);
+          if config.HorizonRise and (config.HorizonMax > musec) and (irc<2) then
+            ObjRise(ra1,dec1,config,hr,azr,irc)
+          else
+            RiseSet(jd0, ra1, dec1, hr, ht2, hs2, azr, azs, irc2, config);
           Fplanet.Asteroid(jd0 + rmod((ht1 - config.TimeZone) + 24, 24) / 24,
             False, ra2, dec2, dist, r, p1,p2,p3, xac, yac, zac);
           precession(jd2000, config.jdchart, ra2, dec2);
@@ -3268,7 +3320,10 @@ begin
           Fplanet.Asteroid(jd0 + rmod((hs1 - config.TimeZone) + 24, 24) / 24,
             False, ra3, dec3, dist, r, p1,p2,p3, xac, yac, zac);
           precession(jd2000, config.jdchart, ra3, dec3);
-          RiseSet(jd0, ra3, dec3, hr2, ht2, hs, azr, azs, irc2, config);
+          if config.HorizonRise and (config.HorizonMax > musec) and (irc<2) then
+            ObjSet(ra3,dec3,config,hs,azs,irc2)
+          else
+            RiseSet(jd0, ra3, dec3, hr2, ht2, hs, azr, azs, irc2, config);
           case irc of
             0:
             begin
